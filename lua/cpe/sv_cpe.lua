@@ -956,9 +956,3 @@ end)
 g.hook.Add( "PlayerInitialSpawn", "cpe_datasend", function(ply)
     CPE.SendData()
 end)
-
-concommand.Add("cpe_debug_spooftab", function()
-
-PrintTable(CPE.SpoofID)
-
-end)
