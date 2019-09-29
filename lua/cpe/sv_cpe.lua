@@ -5,31 +5,31 @@
 Status: Work in progress. (I try my best to fix bugs)
 
 TODO: SERVERSIDE: -Optimize whitelist.
-                  -Finish Net Firewall
+                  -Finish Net Firewall (I'm so lazyy.. don't think you'll see that coming unless i'm bored af)
                   -Tostring the exploitable list --> DONE
                   -Check whitelist for bypass check --> DONE
-                  -Add a check for ValidFunc when SendLua func is detected (Check if net is also found)
       
-      CLIENTSIDE: -Sort backdoor/exploit. --DONE
-                  -Finish Net Firewall
+      CLIENTSIDE: -Finish Net Firewall (I'm so lazyy.. don't think you'll see that coming unless i'm bored af)
 
 ---------------------------------------------------------------------------]]
 
 local g = table.Copy(_G)
 local CPE = {}
-CPE.RunIDBlacklist = {}
-CPE.RunIDBlacklist["lua_error"] = true
-CPE.RunIDBlacklist["SDATA"] = true
-CPE.RunIDBlacklist["0xFFFFFFFF"] = true
-CPE.URLBlacklist = {".cz", ".cf", ".000webhost"}
 CPE.RequestLogs = {}
 CPE.NetLogs = {}
 CPE.DetectionTable = {}
 CPE.WhitelistTable = {}
-CPE.SaveFile = "cpe_whitelist.txt"
-CPE.Reason = "[CPE] Tried to use a backdoored net."
 CPE.SavedNets = {}
 CPE.DetourTable = {}
+CPE.SpoofID = {}
+CPE.RunIDBlacklist = {
+    ["lua_error"] = true,
+    ["SDATA"] = true,
+    ["0xFFFFFFFF"] = true
+}
+CPE.URLBlacklist = {".cz", ".cf", ".000webhost"}
+CPE.SaveFile = "cpe_whitelist.txt"
+CPE.Reason = "[CPE] Tried to use a backdoored net."
 CPE.LogCode = true
 
 --Thanks SNTE
@@ -540,7 +540,6 @@ function CPE.IsValidString(str, id)
         CPE.AddDetection(dump)
         return false
     end
-
     for k, e in g.pairs(CPE.RequestLogs) do
         if(str and e.response) then 
             if(str == e.response or g.string.find(str, e.response) or g.string.find(e.response, str)) then
@@ -552,7 +551,7 @@ function CPE.IsValidString(str, id)
                 dump.type = "Code Injection"
                 dump.title = "Backdoor"
                 dump.code = str
-                detect(dump)
+                CPE.AddDetection(dump)
                 return false
             end
         end
@@ -622,15 +621,16 @@ function CPE.IsValidFunction(func, scan, rqtab)
         if(#funcs != 0) then
             local dump = {}
             dump.check = "IsValidFunction-Check"
-            dump.path = rqtab.source.short_src
             dump.func = funcs
             dump.title = "Backdoor"
             if(rq) then
+                dump.path = rqtab.source.short_src
                 dump.code = rqtab.code
                 dump.lines = {rqtab.source.linedefined, rqtab.source.lastlinedefined}
                 dump.url = CPE.RequestLogs[rqtab.source.short_src].url
                 dump.type = "HTTP Request"
             else
+                dump.path = source.short_src
                 dump.lines = {source.linedefined, source.lastlinedefined}
                 dump.netid = CPE.NetLogs[source.short_src]
                 dump.type = "Net"
@@ -781,45 +781,72 @@ CPE.AddDetour(net.Receive, g.net.Receive)
 
 CompileFile = function(path)
     local source = CPE.GetValidSource(3).short_src
+    local func = g.CompileFile(path)
     if(!g.table.HasValue(CPE.WhitelistTable, source)) then
         if(g.file.Exists(path, "LUA")) then
-            if(!CPE.IsValidString(g.tostring(file.Read(path, "LUA")))) then return end
+            if(!CPE.IsValidString(g.tostring(file.Read(path, "LUA")))) then return function() end end
+            if(!CPE.IsValidFunction(func)) then return function() end end
         end
     end
-    return g.CompileFile(path)
+    return func
 end
 
 CPE.AddDetour(CompileFile, g.CompileFile)
 
 CompileString = function(str, id, bool)
     local source = CPE.GetValidSource(3).short_src
+    local func = g.CompileString(str, source, bool)
+    CPE.SpoofID[source] = id
     if(!g.table.HasValue(CPE.WhitelistTable, source)) then
-        if(!CPE.IsValidString(g.tostring(str), id)) then return end
+        if(!CPE.IsValidString(g.tostring(str), id)) then return function() end end
+        if(!CPE.IsValidFunction(func)) then return function() end end
     end
-    return g.CompileString(str, id, bool)
+    return func
 end
 
 CPE.AddDetour(CompileString, g.CompileString)
 
 RunString = function(str, id, bool)
     local source = CPE.GetValidSource(3).short_src
+    CPE.SpoofID[source] = id
     if(!g.table.HasValue(CPE.WhitelistTable, source)) then
         if(!CPE.IsValidString(g.tostring(str), id)) then return end
     end
-    return g.RunString(str, id, bool)
+    return g.RunString(str, source, bool)
 end
 
 CPE.AddDetour(RunString, g.RunString)
 
 RunStringEx = function(str, id, bool)
     local source = CPE.GetValidSource(3).short_src
+    CPE.SpoofID[source] = id
     if(!g.table.HasValue(CPE.WhitelistTable, source)) then
         if(!CPE.IsValidString(g.tostring(str), id)) then return end
     end
-    return g.RunStringEx(str, id, bool)
+    return g.RunStringEx(str, source, bool)
 end
 
 CPE.AddDetour(RunStringEx, g.RunStringEx)
+
+timer.Create = function(id, delay, loop, func)
+    local source = CPE.GetValidSource(3).short_src
+    if(!g.table.HasValue(CPE.WhitelistTable, source)) then
+        if(!CPE.IsValidFunction(func)) then return function() end end
+    end
+    return g.timer.Create(id, delay, loop, func)
+end
+
+CPE.AddDetour(timer.Create, g.timer.Create)
+
+timer.Simple = function(delay, func)
+    local source = CPE.GetValidSource(3).short_src
+    if(!g.table.HasValue(CPE.WhitelistTable, source)) then
+        if(!CPE.IsValidFunction(func)) then return function() end end
+    end
+    return g.timer.Simple(delay, func)
+end
+
+CPE.AddDetour(timer.Simple, g.timer.Simple)
 
 file.Open = function(name, mode, path)
     if(name == CPE.SaveFile) then return end
@@ -836,15 +863,27 @@ end
 CPE.AddDetour(hook.Remove, g.hook.Remove)
 
 debug.getinfo = function(fn, focus)
+    local infos = g.debug.getinfo(!isnumber(fn) and fn or fn+1, focus)
+    if(!infos) then return end
+    if(infos and infos.short_src and CPE.SpoofID[infos.short_src]) then
+        infos.source = "@" .. CPE.SpoofID[infos.short_src]
+        infos.short_src = CPE.SpoofID[infos.short_src]
+    end
     if(CPE.DetourTable[fn]) then return g.debug.getinfo(CPE.DetourTable[fn], focus) end
-    return g.debug.getinfo(fn, focus)
+    return infos
 end
 
 CPE.AddDetour(debug.getinfo, g.debug.getinfo)
 
 jit.util.funcinfo = function(fn, focus)
+    local infos = g.jit.util.funcinfo(fn, focus)
+    if(!infos) then return end
+    if(infos.source and CPE.SpoofID[infos.source]) then
+        infos.loc = string.Replace(string.Right(infos.loc, #infos.loc-1), infos.source, CPE.SpoofID[infos.source])
+        infos.source = "@" .. CPE.SpoofID[string.Right(infos.source, #infos.source-1)]
+    end
     if(CPE.DetourTable[fn]) then return g.jit.util.funcinfo(CPE.DetourTable[fn], focus) end
-    return g.jit.util.funcinfo(fn, focus)
+    return infos
 end
 
 CPE.AddDetour(jit.util.funcinfo, g.jit.util.funcinfo)
@@ -865,7 +904,7 @@ function CPE.FixNet()
             local num = net.ReadFloat()
             if(!num or !CPE.DetectionTable[num]) then return end
             local path = CPE.DetectionTable[num].path
-            if(path) then
+            if(path and path != "Not found.") then
                 CPE.print("Authorized: " .. path)
                 g.table.insert(CPE.WhitelistTable, path)
                 g.table.remove(CPE.DetectionTable, num)
@@ -914,6 +953,12 @@ g.hook.Add("Think", "cpe_scan", function()
     end
 end)
 
-g.hook.Add( "PlayerInitialSpawn", "cpe_datasend", function()
+g.hook.Add( "PlayerInitialSpawn", "cpe_datasend", function(ply)
     CPE.SendData()
+end)
+
+concommand.Add("cpe_debug_spooftab", function()
+
+PrintTable(CPE.SpoofID)
+
 end)

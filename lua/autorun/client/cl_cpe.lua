@@ -288,7 +288,7 @@ function CPE.OpenMenu()
 			if(infos.check) then
 				CPE.CreateLabel("From Check: " .. infos.check)
 			end
-			local cpbutton = CPE.CreateNoassebutton(main, "Copy", Color(120,120,120), (infos.title == "Backdoor" and 630 or 700), 0, 60, 20)
+			local cpbutton = CPE.CreateNoassebutton(main, "Copy", Color(120,120,120), ( (infos.title == "Backdoor" and infos.path != "Not found.") and 630 or 700), 0, 60, 20)
 			cpbutton.DoClick = function()
 				if(CPE.Loading) then return end
 				if(cpbutton:GetText() == "Copy") then
@@ -301,7 +301,7 @@ function CPE.OpenMenu()
 					end)
 				end
 			end
-			if(infos.title == "Backdoor") then
+			if(infos.title == "Backdoor" and infos.path != "Not found.") then
 				local wlbutton = CPE.CreateNoassebutton(main, "Authorize", Color(255,0,0), 700, 0, 60, 20)
 				wlbutton.DoClick = function()
 					if(CPE.Loading) then return end
@@ -418,7 +418,7 @@ function CPE.DisplayWhitelist()
 	function CPE.DisplayFirewall()
 
 		local incoming = vgui.Create("DLabel", tab3)
-		incoming:SetText("Work in progress. Should be available in the next update.")
+		incoming:SetText("I'm so lazyy.. don't think you'll see that coming unless i'm bored af :/")
 		incoming:SetFont( "cpe_20" )
 		incoming:SizeToContents()
 		incoming:SetWrap( false )
