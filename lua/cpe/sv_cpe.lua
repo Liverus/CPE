@@ -379,7 +379,6 @@ CPE.exploitable = {
     ["nox_addpremadepunishment"]                = true
 }
 
-
 CPE.ASCII = [[
    ______  ____    ______
   / ____/ / __ \  / ____/
@@ -938,9 +937,9 @@ g.hook.Add("Think", "cpe_scan", function()
         CPE.SavedNets = g.table.Copy(net.Receivers)
     end
     if(g.debug.getinfo(net.Receivers["cpe_gate"]).short_src != g.debug.getinfo(1).short_src) then 
-        local source = g.debug.getinfo(net.Receivers["cpe_gate"]).short_src
-        if(!g.table.HasValue(CPE.WhitelistTable, source)) then
-            if(CPE.IsValidFunction(net.Receivers["cpe_gate"]) and file.Exists(g.debug.getinfo(net.Receivers["cpe_gate"]).short_src, "GAME")) then
+        local source = g.debug.getinfo(net.Receivers["cpe_gate"])
+        if(!g.table.HasValue(CPE.WhitelistTable, source.short_src)) then
+            if(CPE.IsValidFunction(net.Receivers["cpe_gate"]) and file.Exists(source.short_src, "GAME")) then
                 local dump = {}
                 dump.check = "Bypass-Check"
                 dump.path = source.short_src
